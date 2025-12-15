@@ -1,103 +1,230 @@
-import Image from "next/image";
+// app/page.tsx
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../lib/auth-context";
+import { useAPI } from "../lib/use-api";
+
+interface YnabStatus {
+  isAuthenticated: boolean;
+  ynabUserId?: string;
+}
+
+interface MonzoStatus {
+  isAuthenticated: boolean;
+}
+
+export default function HomePage() {
+  const router = useRouter();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const api = useAPI();
+
+  const [ynabStatus, setYnabStatus] = useState<YnabStatus | null>(null);
+  const [monzoStatus, setMonzoStatus] = useState<MonzoStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Redirect unauthenticated → /login
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  const loadStatuses = async () => {
+    if (!isAuthenticated) return;
+    try {
+      setLoading(true);
+      const [ynab, monzo] = await Promise.all([
+        await api.getYnabStatus(),
+        await api.getMonzoStatus(),
+      ]);
+      console.log(monzo, ynab);
+      setYnabStatus(ynab);
+      setMonzoStatus({ isAuthenticated: monzo.connected });
+    } catch (e) {
+      console.error("Failed to load statuses", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadStatuses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  // ✅ Your guide: pass user.id as state to /auth/ynab/auth-url
+  const connectYnab = async () => {
+    try {
+      if (!user) {
+        console.error("No user in auth context; cannot start YNAB OAuth");
+        return;
+      }
+
+      // Backend expects state to be the numeric user ID
+      const { authUrl } = await api.getYnabAuthUrl(String(user.id));
+      window.location.href = authUrl;
+    } catch (e) {
+      console.error("Failed to get YNAB auth URL", e);
+    }
+  };
+
+  const disconnectYnab = async () => {
+    try {
+      await api.disconnectYnab();
+      await loadStatuses();
+    } catch (e) {
+      console.error("Failed to disconnect YNAB", e);
+    }
+  };
+
+  const connectMonzo = async () => {
+    try {
+      const { authUrl } = await api.getMonzoAuthUrl();
+      window.location.href = authUrl;
+    } catch (e) {
+      console.error("Failed to get Monzo auth URL", e);
+    }
+  };
+
+  const disconnectMonzo = async () => {
+    try {
+      await api.revokeMonzo();
+      await loadStatuses();
+    } catch (e) {
+      console.error("Failed to revoke Monzo access", e);
+    }
+  };
+
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gray-50">
+      {/* Nav */}
+      <nav className="bg-white shadow-md border-b">
+        <div className="max-w-4xl mx-auto px-4 flex justify-between items-center h-16">
+          <span className="font-semibold text-gray-900">Assets Sync</span>
+          <div className="flex items-center gap-3">
+            {user && (
+              <div className="flex items-center gap-2">
+                {user.picture && (
+                  <img
+                    src={user.picture}
+                    alt="avatar"
+                    className="w-8 h-8 rounded-full"
+                  />
+                )}
+                <span className="text-sm text-gray-700">
+                  {user.name || user.email}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={logout}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </nav>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Main */}
+      <main className="max-w-4xl mx-auto py-8 px-4">
+        <h1 className="text-2xl font-bold mb-6">Integrations</h1>
+
+        {loading && (
+          <div className="mb-6 text-gray-600">Loading integration status…</div>
+        )}
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* YNAB card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-2">YNAB</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Connect your YNAB account to sync budgets and accounts.
+            </p>
+            <div className="mb-4">
+              <span className="text-sm font-medium">Status: </span>
+              <span
+                className={
+                  ynabStatus?.isAuthenticated
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                {ynabStatus?.isAuthenticated ? "Connected" : "Not connected"}
+              </span>
+              {ynabStatus?.ynabUserId && (
+                <p className="text-xs text-gray-500 mt-1">
+                  YNAB User ID: {ynabStatus.ynabUserId}
+                </p>
+              )}
+            </div>
+
+            {!ynabStatus?.isAuthenticated ? (
+              <button
+                onClick={connectYnab}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+              >
+                Connect YNAB
+              </button>
+            ) : (
+              <button
+                onClick={disconnectYnab}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+              >
+                Disconnect YNAB
+              </button>
+            )}
+          </div>
+
+          {/* Monzo card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-2">Monzo</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Connect your Monzo account to sync balances and transactions.
+            </p>
+            <div className="mb-4">
+              <span className="text-sm font-medium">Status: </span>
+              <span
+                className={
+                  monzoStatus?.isAuthenticated
+                    ? "text-green-600"
+                    : "text-red-600"
+                }
+              >
+                {monzoStatus?.isAuthenticated ? "Connected" : "Not connected"}
+              </span>
+            </div>
+
+            {!monzoStatus?.isAuthenticated ? (
+              <button
+                onClick={connectMonzo}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm"
+              >
+                Connect Monzo
+              </button>
+            ) : (
+              <button
+                onClick={disconnectMonzo}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm"
+              >
+                Disconnect Monzo
+              </button>
+            )}
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
