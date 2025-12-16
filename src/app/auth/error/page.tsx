@@ -14,9 +14,7 @@ export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
         <h1 className="text-xl font-semibold text-red-700 mb-2">
           Authentication Error
         </h1>
-        <p className="text-gray-700 mb-4">
-          Something went wrong connecting to YNAB.
-        </p>
+        <p className="text-gray-700 mb-4">Something went wrong.</p>
         <p className="text-sm text-gray-500 mb-6">Error code: {error}</p>
 
         {/* Server-safe, no hooks */}
@@ -24,7 +22,7 @@ export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
           href="/"
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm inline-block text-center"
         >
-          Back to dashboard
+          Back Home
         </Link>
       </div>
     </div>
