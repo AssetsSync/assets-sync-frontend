@@ -2,6 +2,16 @@
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
+export interface ApiTokenDto {
+  id: number;
+  name: string;
+  user_id: number;
+  scopes: string[];
+  created_at: string; // ISO date
+  last_used_at: string | null;
+  expires_at: string | null;
+}
+
 export class APIClient {
   private baseURL = BACKEND_URL;
   private getAccessToken: () => string | null;
@@ -106,5 +116,20 @@ export class APIClient {
 
   revokeMonzo() {
     return this.get<{ message: string }>("/monzo/revoke");
+  }
+
+  // ---------- PAT / API Tokens ----------
+  async getApiTokens(): Promise<ApiTokenDto[]> {
+    return this.get("/auth/api-tokens");
+  }
+
+  async createApiToken(
+    name: string
+  ): Promise<{ id: number; token: string; name: string; createdAt: string }> {
+    return this.post("/auth/api-tokens", { name });
+  }
+
+  async deleteApiToken(id: number): Promise<{ success: boolean }> {
+    return this.delete(`/auth/api-tokens/${id}`);
   }
 }
