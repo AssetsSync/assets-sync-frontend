@@ -1,18 +1,12 @@
-"use client";
+// app/auth/error/page.tsx
+import Link from "next/link";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+type AuthErrorPageProps = {
+  searchParams?: { error?: string };
+};
 
-export default function AuthErrorPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const error = searchParams.get("error") || "unknown_error";
-
-  useEffect(() => {
-    // auto-redirect home after a few seconds if you want
-    const t = setTimeout(() => router.replace("/"), 5000);
-    return () => clearTimeout(t);
-  }, [router]);
+export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
+  const error = searchParams?.error ?? "unknown_error";
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-red-50">
@@ -24,12 +18,14 @@ export default function AuthErrorPage() {
           Something went wrong connecting to YNAB.
         </p>
         <p className="text-sm text-gray-500 mb-6">Error code: {error}</p>
-        <button
-          onClick={() => router.replace("/")}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm"
+
+        {/* Server-safe, no hooks */}
+        <Link
+          href="/"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm inline-block text-center"
         >
           Back to dashboard
-        </button>
+        </Link>
       </div>
     </div>
   );
